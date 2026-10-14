@@ -132,6 +132,7 @@
 #define AU_LIGHTSHAFT_NIGHT_I 0.35     // moonlight haze (1.0 washes Hytale nights out)
 #define AU_LIGHTSHAFT_SCENE_BOOST 1.0  // extra shaft strength under canopies / in caves (0 = off)
 #define AU_LIGHTSHAFT_SOFTNESS 1.0     // soft beam edges: shadow lookups spread over ~2 texels (0 = hard, boxy edges)
+#define AU_LIGHTSHAFT_BEAM_WIDTH 3.0   // widest lit gap (blocks) boosted as a beam; wider sunlit air only gets the haze
 
 // ---- Water ---------------------------------------------------------------------------
 #define AU_WATER 1
