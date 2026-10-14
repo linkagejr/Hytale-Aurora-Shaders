@@ -7,8 +7,8 @@
 
 uniform sampler2DShadow uHookShadowMap;
 
-// Returns false when the point is outside every cascade.
-bool GetShadowCoord(vec3 positionFromCameraWS, out vec3 coord)
+// Returns false when the point is outside every cascade; `cascade` is the one it is in (-1).
+bool GetShadowCoordCascade(vec3 positionFromCameraWS, out vec3 coord, out int cascade)
 {
     for (int c = 0; c < AU_SHADOW_CASCADES; c++) {
         vec4 ls = SunShadowMatrix[c] * vec4(positionFromCameraWS + SunShadowCascadeCachedTranslations[c].xyz, 1.0);
@@ -16,11 +16,19 @@ bool GetShadowCoord(vec3 positionFromCameraWS, out vec3 coord)
             coord = ls.xyz * 0.5 + 0.5;
             const float scale = 1.0 / float(AU_SHADOW_CASCADES);
             coord.x = coord.x * scale + scale * float(c);
+            cascade = c;
             return true;
         }
     }
     coord = vec3(0.0);
+    cascade = -1;
     return false;
+}
+
+bool GetShadowCoord(vec3 positionFromCameraWS, out vec3 coord)
+{
+    int cascade;
+    return GetShadowCoordCascade(positionFromCameraWS, coord, cascade);
 }
 
 // 1 = lit, 0 = shadowed. Outside the shadow range returns `fallback`.

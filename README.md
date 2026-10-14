@@ -269,6 +269,7 @@ These only apply with the **RTX** preset.
 | **Strength** | Overall strength of the rays. |
 | **Forest / cave beams** | How much the beams falling through gaps - between leaves, through roofs and cave openings - stand out from the general haze. 0 makes them plain haze. |
 | **Beam boost** | Extra brightness for those beams. |
+| **Beam edge softness** | Softens the edges of the beams. Without it they show the shadow map's pixels as boxy, stair-stepped edges, most when the beams are far away. 0 gives the old hard edges. |
 | **Moonlight haze** | Strength of the moonlit haze at night. |
 
 ### Water
