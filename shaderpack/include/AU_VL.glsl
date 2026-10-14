@@ -10,6 +10,10 @@
 #ifndef AU_LIGHTSHAFT_SOFTNESS
 #define AU_LIGHTSHAFT_SOFTNESS 1.0
 #endif
+// Widest lit stretch (blocks, across the light) that still counts as a beam for the boost.
+#ifndef AU_LIGHTSHAFT_BEAM_WIDTH
+#define AU_LIGHTSHAFT_BEAM_WIDTH 3.0
+#endif
 
 // The scene is still in gamma space here (PostEffectFS applies the pow 2.2); the shafts belong
 // in linear space, after that pow.
@@ -61,9 +65,10 @@ vec3 GetVolumetricLight(vec3 nPlayerPos, float lViewPos1, bool sky, float dither
     float noonMult = mix(invNoonFactor2 * 0.875 + 0.125, 1.0, rainFactor2);
     vlMult *= noonMult;
     vlMult *= 1.4 - 0.4 * rainFactor;
-    // Scene-aware strength per sample: light right after shadow along the ray - a shaft - gets
-    // full strength at noon plus the boost wherever the camera is, under the trees or looking at
-    // them from outside. Open daylit air (a door, a gap, an open field) keeps the dimmed noon haze.
+    // Scene-aware strength per sample: light right after shadow along the ray - a shaft, a narrow
+    // lit stretch with shadow on both sides (see below) - gets full strength at noon plus the
+    // boost wherever the camera is, under the trees or looking at them from outside. Open daylit
+    // air (a door, a gap, an open field) keeps the dimmed noon haze.
     float shaftMult = (1.0 / noonMult) * (1.0 + AU_LIGHTSHAFT_SCENE_BOOST * float(sunVisibility > 0.5));
     // How much of the boost a ray gets depends on the ray itself, not on where the camera is: the
     // share of it that ran through shadow so far (rooms, caves, under a canopy: most of it; an
@@ -120,6 +125,17 @@ vec3 GetVolumetricLight(vec3 nPlayerPos, float lViewPos1, bool sky, float dither
     vec2 shaftU = vec2(fract(dither * 3.17 + 0.25), fract(dither * 7.31 + 0.5));
     vec2 shaftOffset = sqrt(shaftU.x) * vec2(cos(6.2831853 * shaftU.y), sin(6.2831853 * shaftU.y))
                      * 2.0 * AU_LIGHTSHAFT_SOFTNESS * shaftTexel;
+    // Beams, not open air. Light right after shadow is also what a ray meets where it leaves the
+    // shade for a sunlit clearing, the field behind a tree line or the air above a canopy, and
+    // boosting that drew a solid wall of haze with the shadows' straight block edges, starting
+    // where the shade around the player ended (objects still in the shade stayed clear, so it cut
+    // across trees at odd heights). A lit stretch's boost now only counts once the ray is back in
+    // shadow and the stretch was narrow - up to about AU_LIGHTSHAFT_BEAM_WIDTH blocks across the
+    // light: a beam. A stretch the ray ends in (open air, a sunlit field, the sky through a gap)
+    // keeps the dimmed haze only.
+    float sinVL = sqrt(max(1.0 - VdotL * VdotL, 0.0));
+    bool inLight = false;
+    float runStart = 0.0, runLast = 0.0, runShaft = 0.0;
     for (int i = 0; i <= totalSamples; i++) {
         float nextDistance;
         float localDensity;
@@ -161,10 +177,37 @@ vec3 GetVolumetricLight(vec3 nPlayerPos, float lViewPos1, bool sky, float dither
         float nearW = (1.0 - smoothstep(12.0, 48.0, nextDistance)) * (1.0 - litRecent) * shaftAmount * mix(0.4, 1.0, enclosed);
         float sampleLight = localDensity * (nextWeight - lastFogWeight);
         vlBase += sampleLight;
-        vlShaft += localDensity * shaftWeight * (shaftMult - 1.0) * nearW;
+        float boost = localDensity * shaftWeight * (shaftMult - 1.0) * nearW;
+        // Lit / shadow at 0.5: leaf shadows let some light through, and that is still shade.
+        if (localDensity > 0.5) {
+            if (!inLight) { inLight = true; runStart = nextDistance; runShaft = 0.0; }
+            runLast = nextDistance;
+            runShaft += boost;
+        } else if (inLight) {
+            // Back in shadow: the stretch (and this soft edge of it) was a beam if it was narrow.
+            float width = (runLast - runStart) * sinVL;
+            vlShaft += (runShaft + boost) * (1.0 - smoothstep(0.5, 2.5, width / AU_LIGHTSHAFT_BEAM_WIDTH));
+            inLight = false;
+        }
         litRecent = mix(litRecent, localDensity, 0.6);
         lastFogWeight = nextWeight;
         lastShaftWeight = nextShaftWeight;
+    }
+    // Still in the light where the ray meets a surface: if the surface is in shadow, the stretch
+    // ended in shadow just short of the next sample (a beam crossed right in front of a shaded
+    // wall or floor). A sunlit surface - a beam's own patch of light, a sunlit field - is not.
+    // Only shade from over a block up counts (a roof, a canopy): right at the surface the shadow
+    // map shades the surface itself, which drew rings.
+    if (inLight && !sky) {
+        vec3 sc;
+        int c;
+        if (GetShadowCoordCascade(nPlayerPos * max(rayEnd - 0.25, 0.0), sc, c)) {
+            vec3 zRow = vec3(SunShadowMatrix[c][0][2], SunShadowMatrix[c][1][2], SunShadowMatrix[c][2][2]);
+            if (texture(uHookShadowMap, vec3(sc.xy, sc.z - 0.0002 - 0.5 * length(zRow))) <= 0.5) {
+                float width = (runLast - runStart) * sinVL;
+                vlShaft += runShaft * (1.0 - smoothstep(0.5, 2.5, width / AU_LIGHTSHAFT_BEAM_WIDTH));
+            }
+        }
     }
 
     vlColor = pow(vlColor, vec3(0.5 + (0.5 + 0.25 * sunVisibility) * invNoonFactor * invRainFactor + 0.3 * rainFactor));
