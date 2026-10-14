@@ -132,6 +132,7 @@
 #define AU_LIGHTSHAFT_SUNSET_I 0.5    // low-sun haze (the low sun's light colour is strong; 1.0 drowned the land)
 #define AU_LIGHTSHAFT_NIGHT_I 0.35     // moonlight haze (1.0 washes Hytale nights out)
 #define AU_LIGHTSHAFT_SCENE_BOOST 1.0  // extra shaft strength under canopies / in caves (0 = off)
+#define AU_LIGHTSHAFT_SOFTNESS 1.0     // soft beam edges: shadow lookups spread over ~2 texels (0 = hard, boxy edges)
 
 // ---- Water ---------------------------------------------------------------------------
 #define AU_WATER 1

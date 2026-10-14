@@ -7,6 +7,10 @@
 #include "AU_Shadow.glsl"
 #include "AU_Fog.glsl"
 
+#ifndef AU_LIGHTSHAFT_SOFTNESS
+#define AU_LIGHTSHAFT_SOFTNESS 1.0
+#endif
+
 // The scene is still in gamma space here (PostEffectFS applies the pow 2.2); the shafts belong
 // in linear space, after that pow.
 vec3 AU_AddVL(vec3 color, vec3 vl)
@@ -104,6 +108,18 @@ vec3 GetVolumetricLight(vec3 nPlayerPos, float lViewPos1, bool sky, float dither
     // stands out right after shadow along the ray (a shaft crossing a dark room), not the run of
     // daylit air seen through a door or a gap, which would otherwise turn into bright fog.
     float litRecent = 0.0;
+    // One hard shadow lookup per sample showed the shadow map's texels: beams came out boxy,
+    // with stair-stepped edges (worst with big texels: far cascades, low shadow resolution),
+    // and the beam boost made them stand out. The ray looks the shadow map up a little to the
+    // side instead - up to AU_LIGHTSHAFT_SOFTNESS * 2 texels, a different offset per pixel and
+    // per frame - and the TAA blends that into soft beam edges. One offset for the whole ray,
+    // not one per sample: the boost below reacts to light right after shadow, and samples
+    // flickering between the two along a beam's edge drew a bright rim on it. The offset comes
+    // from the ray's own dither: that converged faster under the TAA than separate noise.
+    vec2 shaftTexel = 1.0 / vec2(textureSize(uHookShadowMap, 0));
+    vec2 shaftU = vec2(fract(dither * 3.17 + 0.25), fract(dither * 7.31 + 0.5));
+    vec2 shaftOffset = sqrt(shaftU.x) * vec2(cos(6.2831853 * shaftU.y), sin(6.2831853 * shaftU.y))
+                     * 2.0 * AU_LIGHTSHAFT_SOFTNESS * shaftTexel;
     for (int i = 0; i <= totalSamples; i++) {
         float nextDistance;
         float localDensity;
@@ -113,7 +129,16 @@ vec3 GetVolumetricLight(vec3 nPlayerPos, float lViewPos1, bool sky, float dither
             nextDistance = pow(t, sampleDistribution) * nearEnd;
             if (nextDistance >= rayEnd) break;
             vec3 sc;
-            if (GetShadowCoord(nPlayerPos * nextDistance, sc)) {
+            int cascade;
+            if (GetShadowCoordCascade(nPlayerPos * nextDistance, sc, cascade)) {
+                if (AU_LIGHTSHAFT_SOFTNESS > 0.0) {
+                    // Less in the far cascades (bigger texels), like the soft sun shadows.
+                    const float cascadeScale = 1.0 / float(AU_SHADOW_CASCADES);
+                    sc.xy += shaftOffset / (1.0 + 0.6 * float(cascade));
+                    // Stay inside this cascade's part of the atlas.
+                    sc.x = clamp(sc.x, cascadeScale * float(cascade) + 2.0 * shaftTexel.x,
+                                 cascadeScale * float(cascade + 1) - 2.0 * shaftTexel.x);
+                }
                 localDensity = texture(uHookShadowMap, vec3(sc.xy, sc.z - 0.0002));
                 lastDensity = localDensity;
             } else {
