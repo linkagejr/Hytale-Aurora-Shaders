@@ -6,7 +6,8 @@
 #     library into the game (LD_PRELOAD) and lets it read this folder.
 #   - Hytale installed without Flatpak: adds a "Hytale (Aurora Shaders)" launcher that starts it
 #     with the shader library.
-# Replaces an earlier Aurora install (this method, or the SDL3 proxy of tools/linux_install.py).
+# Replaces an earlier Aurora install (this method, or the SDL3 proxy of tools/linux_install.py),
+# keeping the settings you changed there, your custom profiles and foliage masks.
 #
 #   ./install.sh                     install (prebuilt bin/libaurora.so, or builds it)
 #   ./install.sh --build             build the library from source first (./build.sh)
@@ -32,7 +33,7 @@ while [[ $# -gt 0 ]]; do
         --build) build=1 ;;
         --uninstall) uninstall=1 ;;
         --client-dir) client_dir=${2:-}; shift ;;
-        -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
     shift
@@ -114,6 +115,38 @@ remove_sdl_proxy() {
 # Flatpak: the user override file holds LD_PRELOAD, AURORA_* and the folder permission.
 
 flatpak_override_file() { printf '%s\n' "$DATA_HOME/flatpak/overrides/$APP"; }
+
+flatpak_env() {   # $1 = name: its value in the user override's [Environment]
+    local f; f=$(flatpak_override_file)
+    [[ -f $f ]] || return 0
+    awk -v key="$1" '/^\[/ { group = $0; next }
+        group == "[Environment]" && index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' "$f"
+}
+
+launcher_env() {   # $1 = name: its value in the native launcher script of an earlier install
+    [[ -f $NATIVE_LAUNCHER ]] || return 0
+    python3 - "$NATIVE_LAUNCHER" "$1" <<'EOF'
+import shlex, sys
+for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
+    if line.startswith('export ' + sys.argv[2] + '='):
+        try:
+            print(shlex.split(line)[1].split('=', 1)[1])
+        except (ValueError, IndexError):
+            pass
+        break
+EOF
+}
+
+# The shaderpack the game uses now when it is another folder's (an earlier package, or the SDL3
+# proxy's copy in the game folder): its settings, profiles and masks are carried over.
+active_pack() {
+    local client=$1 flatpak=$2 p
+    if [[ $flatpak == 1 ]]; then p=$(flatpak_env AURORA_SHADERPACK); else p=$(launcher_env AURORA_SHADERPACK); fi
+    if [[ -z $p ]] && grep -qas AURORA_SDL_PROXY_V1 "$client/libSDL3.so"; then p=$client/.aurora/shaderpack; fi
+    [[ -n $p && -d $p ]] || return 0
+    [[ $(cd "$p" && pwd -P) != "$(cd "$ROOT/shaderpack" && pwd -P)" ]] || return 0
+    printf '%s\n' "$p"
+}
 
 # Current LD_PRELOAD in the user override, without Aurora's libraries.
 flatpak_other_preloads() {
@@ -279,6 +312,12 @@ printf '%s\n' "$client_dir" > "$CONFIG"
 say "Hytale: $client_dir"
 wait_for_game_closed
 
+case $client_dir/ in
+    "$FLATPAK_DATA"/*) flatpak=1 ;;
+    *) if have_flatpak_app && [[ ! -d $DATA_HOME/Hytale ]]; then flatpak=1; else flatpak=0; fi ;;
+esac
+[[ $flatpak == 0 ]] || command -v flatpak >/dev/null || die "Hytale is a Flatpak here, but the flatpak command was not found."
+
 # The library: built from source on request, else the prebuilt one, else a local build.
 prebuilt=$ROOT/bin/$LIBNAME
 local_build=$ROOT/build/$LIBNAME
@@ -291,15 +330,17 @@ else
     lib=$local_build
 fi
 
+# Replacing an install from another folder: keep what was changed there (before preparing, so
+# custom foliage masks go into the mask build).
+previous=$(active_pack "$client_dir" "$flatpak")
+if [[ -n $previous ]]; then
+    python3 "$ROOT/tools/linux_settings.py" --from "$previous" --to "$ROOT/shaderpack" \
+        || say "Your earlier settings were not carried over; this folder starts with the defaults."
+fi
 python3 "$ROOT/tools/linux_prepare.py" --exe "$exe"
 remove_sdl_proxy "$client_dir"
 
-case $client_dir/ in
-    "$FLATPAK_DATA"/*) flatpak=1 ;;
-    *) if have_flatpak_app && [[ ! -d $DATA_HOME/Hytale ]]; then flatpak=1; else flatpak=0; fi ;;
-esac
 if [[ $flatpak == 1 ]]; then
-    command -v flatpak >/dev/null || die "Hytale is a Flatpak here, but the flatpak command was not found."
     install_flatpak "$lib" "$client_dir" "$(basename "$exe")"
 else
     install_native "$lib" "$(basename "$exe")"
