@@ -60,6 +60,7 @@ static FILE *g_log;
 static int g_dump;
 static volatile LONG g_reloadRequested;
 static int g_enabled = 1;
+static int g_packStale;   // the game changed since its shaders were prepared (Linux installer record)
 
 // ----------------------------------------------------------------------------------------
 // Logging / files
@@ -358,6 +359,61 @@ static void expand(Str *out, const char *text, int depth)
     }
 }
 
+#ifndef _WIN32
+// Moves the override's #extension directives (outside #if blocks) up to just after #version.
+// They follow the game's CPU defines in the built source, and Mesa (AMD / Intel on Linux)
+// rejects an #extension that comes after any declaration; right after #version is valid
+// everywhere.
+static int directive_is(const char *line, const char *name)
+{
+    while (*line == ' ' || *line == '\t') line++;
+    if (*line != '#') return 0;
+    line++;
+    while (*line == ' ' || *line == '\t') line++;
+    size_t n = strlen(name);
+    return !strncmp(line, name, n) && (line[n] == ' ' || line[n] == '\t' || line[n] == '\r' || line[n] == '\n' || !line[n]);
+}
+
+static void hoist_extensions(Str *src)
+{
+    if (!src->p) return;
+    const char *verEnd = NULL;
+    for (const char *p = src->p; *p;) {
+        const char *e = strchr(p, '\n');
+        if (directive_is(p, "version")) { verEnd = e ? e + 1 : p + strlen(p); break; }
+        if (!e) break;
+        p = e + 1;
+    }
+    if (!verEnd) return;
+    Str ext = {0}, rest = {0};
+    int depth = 0;
+    for (const char *p = verEnd; *p;) {
+        const char *e = strchr(p, '\n');
+        size_t n = e ? (size_t)(e - p + 1) : strlen(p);
+        if (directive_is(p, "if") || directive_is(p, "ifdef") || directive_is(p, "ifndef")) depth++;
+        else if (directive_is(p, "endif") && depth > 0) depth--;
+        if (depth == 0 && directive_is(p, "extension")) {
+            str_add(&ext, p, n);
+            if (!e) str_cstr(&ext, "\n");
+            str_cstr(&rest, "\n");   // keep the line count
+        } else {
+            str_add(&rest, p, n);
+        }
+        p += n;
+    }
+    if (ext.n) {
+        Str out = {0};
+        str_add(&out, src->p, (size_t)(verEnd - src->p));
+        str_add(&out, ext.p, ext.n);
+        str_add(&out, rest.p, rest.n);
+        free(src->p);
+        *src = out;
+    }
+    free(ext.p);
+    free(rest.p);
+}
+#endif
+
 // Builds the replacement source for runtime source `orig` identified as entry `idx`.
 // Returns NULL when there is no override file.
 static char *build_override(const char *orig, int idx)
@@ -382,6 +438,9 @@ static char *build_override(const char *orig, int idx)
     str_cstr(&out, "#define HYTALE_SHADERPACK 1\n");
     expand(&out, main, 0);
     free(main);
+#ifndef _WIN32
+    hoist_extensions(&out);
+#endif
     return out.p;
 }
 
@@ -2788,7 +2847,7 @@ static void do_reload(void)
     settings_load();
     materials_reset();
     EnterCriticalSection(&g_lock);
-    g_enabled = !g_toggleOff && !pack_flag("programs\\_disabled");
+    g_enabled = !g_toggleOff && !g_packStale && !pack_flag("programs\\_disabled");
     load_index();
     load_shares();
     load_textures_cfg();
