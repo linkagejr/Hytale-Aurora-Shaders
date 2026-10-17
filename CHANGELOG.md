@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3 - Linux package
+
+- Light shafts: soft beam edges instead of boxy, stair-stepped ones (new **Beam edge softness** option), and the beam boost only lifts beams through gaps a few blocks wide, so no wall of haze shows up at the edge of the shade.
+- Linux install through a Flatpak override (or a launcher for native installs) with a prebuilt library: no game files changed, no build tools needed. An earlier install is replaced and the settings changed there are kept.
+- Linux hook: works next to other preloaded layers (MangoHud, gamemode), compiles on Mesa, runs on glibc 2.34 and newer, loads cairo at run time, and uses the game's own shaders after a game update until install.sh runs again.
+
 ## 1.4.3
 
 - Fixed DLSS black screens affecting some RTX GPUs, including Super Resolution and Ray Reconstruction.

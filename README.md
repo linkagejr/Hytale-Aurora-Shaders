@@ -63,8 +63,8 @@ Close Hytale, then from this folder:
 bash install.sh
 ```
 
-Then **start Hytale normally** (launcher or desktop shortcut). Home opens the options, Pause
-switches the shaders off and on.
+Then **start Hytale normally** (launcher or desktop shortcut; if the launcher was open, close it
+and start it again). Home opens the options, Pause switches the shaders off and on.
 
 The installer changes no game file. For the Flatpak it sets a user override
 (`flatpak override --user com.hypixel.HytaleLauncher`) that preloads `libaurora.so` into the
@@ -350,10 +350,12 @@ made through the menu or shader files reload while you play.
 - **Black world with DLSS enabled, but the UI is visible:** update to 1.4.3, which includes
   the tested capture and synchronization fixes. If it still happens, follow the
   [DLSS diagnostic steps](docs/dlss-diagnostics.md#one-shot-diagnostic) and attach `hook.log` to your issue.
-- **Linux looks like vanilla:** press Pause once, then check `shaderpack/hook.log` (in the folder
-  you installed from): "hook loaded (preload)" means Aurora is running; a note that HytaleClient
-  changed means the game updated - close it and run `bash install.sh` again. No hook.log at all:
-  run `bash install.sh` again and check `flatpak override --user --show com.hypixel.HytaleLauncher`.
+- **Linux looks like vanilla:** press Pause once, and restart the launcher if it was open while
+  you installed. Then check `shaderpack/hook.log` (in the folder you installed from): "hook
+  loaded (preload)" means Aurora is running; a note that HytaleClient changed (the menu then says
+  "Game updated: run install.sh again") means the game updated - close it and run
+  `bash install.sh` again. No hook.log at all: run `bash install.sh` again and check
+  `flatpak override --user --show com.hypixel.HytaleLauncher`.
 - **No menu on Linux:** the menu draws its text with cairo; `hook.log` says so if the game's
   runtime has no libcairo. The shaders still work.
 - **Linux menu ignores the mouse:** hold **Ctrl** (not Alt) to use the mouse in the menu.
