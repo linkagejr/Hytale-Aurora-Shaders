@@ -4090,8 +4090,9 @@ static void menu_render(int screenWidth, int screenHeight)
     menu_fill(dc, pad, layout->title - 2, width - pad, layout->title - 1, RGB(47, 85, 91));
     menu_text(dc, L"Aurora", pad + (int)(6 * scale), (int)(4 * scale), width / 2, layout->title / 2 + (int)(6 * scale),
               g_fBold, RGB(158, 243, 221), DT_LEFT);
-    menu_text(dc, L"Shader settings", pad + (int)(6 * scale), layout->title / 2, width / 2, layout->title - (int)(5 * scale),
-              g_fSmall, RGB(129, 153, 174), DT_LEFT);
+    menu_text(dc, g_packStale ? L"Game updated: run install.sh again" : L"Shader settings", pad + (int)(6 * scale),
+              layout->title / 2, width / 2, layout->title - (int)(5 * scale),
+              g_fSmall, g_packStale ? RGB(240, 176, 112) : RGB(129, 153, 174), DT_LEFT);
     int badgeLeft = width - (int)(150 * scale), badgeRight = width - layout->row;
     menu_round(dc, badgeLeft, (int)(17 * scale), badgeRight, (int)(42 * scale), (int)(16 * scale),
                g_menuMouseMode ? RGB(26, 75, 69) : RGB(30, 42, 58));

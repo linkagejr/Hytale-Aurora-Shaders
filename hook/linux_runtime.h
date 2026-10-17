@@ -57,6 +57,25 @@ static int linux_game_process(void)
     return game;
 }
 
+// The SDL3 proxy of tools/linux_install.py (the other install method) hooks the game by itself:
+// when it is in the game folder, the preloaded library stays out of the way instead of hooking
+// everything twice.
+static int linux_proxy_present(void)
+{
+    static int cached = -1;
+    int known = __atomic_load_n(&cached, __ATOMIC_ACQUIRE);
+    if (known >= 0) return known;
+    void *original = dlopen("libSDL3.aurora-original.so", RTLD_LAZY | RTLD_NOLOAD);
+    if (original) {
+        dlclose(original);
+        fprintf(stderr, "Aurora: the SDL3 proxy of tools/linux_install.py is in the game folder; "
+                        "the preloaded library stays inactive (use one install method).\n");
+    }
+    known = original != NULL;
+    __atomic_store_n(&cached, known, __ATOMIC_RELEASE);
+    return known;
+}
+
 // The real dlsym, found by version (the unversioned name would find ours).
 typedef void *(*AuDlsym)(void *, const char *);
 __attribute__((visibility("hidden"), used)) AuDlsym aurora_real_dlsym;
@@ -81,7 +100,7 @@ __attribute__((visibility("hidden"), used)) void *aurora_dlsym_filter(void *hand
     bool getproc = !strcmp(name, "SDL_GL_GetProcAddress"), swap = !strcmp(name, "SDL_GL_SwapWindow");
     // The menu's input hooks (linux_menu.h): events, keyboard and mouse state, mouse capture.
     void *menu = getproc || swap ? NULL : linux_menu_lookup(name);
-    if ((!getproc && !swap && !menu) || !linux_game_process()) return NULL;
+    if ((!getproc && !swap && !menu) || !linux_game_process() || linux_proxy_present()) return NULL;
     void *p = aurora_real_dlsym(handle == RTLD_DEFAULT ? RTLD_NEXT : handle, name);
     if (!p || p == (void *)SDL_GL_GetProcAddress || p == (void *)SDL_GL_SwapWindow || p == menu) return NULL;
     if (getproc) linux_sdl_getproc = (SDL_GetProc)p;
@@ -125,11 +144,13 @@ static PROC linux_gl_proc(const char *name)
     return linux_sdl_getproc && name ? linux_sdl_getproc(name) : NULL;
 }
 
-// The installer notes which HytaleClient build the shaders were prepared from
+// install.sh notes which HytaleClient build the shaders were prepared from
 // (original/source.txt: "size N", "mtime N"). After a game update the prepared shaders may no
-// longer match: run the game's own shaders until the installer runs again.
+// longer match: run the game's own shaders until install.sh runs again. Preload build only: the
+// SDL3 proxy is installed by tools/linux_install.py, which does not write this record.
 static void linux_check_game_build(void)
 {
+#if !AU_SDL_PROXY
     char *txt = read_file("original/source.txt", NULL);
     if (!txt) return;
     long long size = -1, mtime = -1;
@@ -151,6 +172,7 @@ static void linux_check_game_build(void)
         logf_("HytaleClient changed since the shaders were prepared (game update?): using the game's own shaders. "
               "Run install.sh again.");
     }
+#endif
 }
 
 static void linux_init(void)
