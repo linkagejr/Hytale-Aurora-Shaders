@@ -151,7 +151,7 @@ AU_LIGHTSHAFT_STRENGTH | Strength | range 0.0 3.0 0.1 | 1.0
 AU_LIGHTSHAFT_HAZE | Open-air haze | range 0.0 1.0 0.05 | 0.4
 AU_LIGHTSHAFT_SCENE_AWARE | Forest / cave beams | range 0.0 1.0 0.05 | 1.0
 AU_LIGHTSHAFT_SCENE_BOOST | Beam boost | range 0.0 3.0 0.1 | 1.0
-AU_LIGHTSHAFT_SOFTNESS | Beam edge softness | range 0.0 3.0 0.25 | 1.0
+AU_LIGHTSHAFT_SOFTNESS | Beam edge softness | range 0.0 3.0 0.25 | 1.0 | Softens beam edges: each shadow lookup is spread over a few shadow-map pixels instead of showing them as boxy steps. 0 = old hard edges.
 AU_LIGHTSHAFT_SUNSET_I | Sunrise / sunset haze | range 0.0 1.0 0.05 | 0.5
 AU_LIGHTSHAFT_NIGHT_I | Moonlight haze | range 0.0 1.0 0.05 | 0.35
 
