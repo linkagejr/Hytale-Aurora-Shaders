@@ -51,46 +51,41 @@ a rotating star sky, lens flare and a filmic tonemap - with an in-game options m
 
 ## Install
 
-### Ubuntu-based Linux
+### Linux
 
-The native Linux build targets **x86_64 Ubuntu 22.04 or newer**, including Ubuntu-based
-distributions such as Linux Mint and Pop!_OS. It uses the Linux Hytale client and its SDL3
-OpenGL renderer. Both native launcher installations and the official Flatpak are detected.
+For the Linux Hytale client (x86_64), from the official Flatpak or a native launcher install.
+The download includes a prebuilt library, so no compiler or extra packages are needed; only
+`python3`, which reads the game's own shaders.
 
-Close Hytale, then install the build dependencies and automatic hook from this folder:
+Close Hytale, then from this folder:
 
 ```bash
-sudo apt update
-sudo apt install build-essential pkg-config libcairo2-dev fonts-dejavu-core python3 python3-pil
-./install.sh
+bash install.sh
 ```
 
-**Start Hytale through your normal launcher or desktop shortcut.** Aurora loads automatically;
-`launch.sh` is now just an optional shortcut to the normal launcher.
+Then **start Hytale normally** (launcher or desktop shortcut). Home opens the options, Pause
+switches the shaders off and on.
 
-The installer builds `build/libaurora-sdl.so` and installs it as the game's `Client/libSDL3.so`.
-The original SDL library is preserved unchanged as `Client/libSDL3.aurora-original.so`.
-The proxy forwards SDL calls and intercepts shader loading and presentation. Hytale's client
-executable is unchanged, and no Flatpak overrides or environment variables are required.
+The installer changes no game file. For the Flatpak it sets a user override
+(`flatpak override --user com.hypixel.HytaleLauncher`) that preloads `libaurora.so` into the
+game and lets it read this folder; for a native install it adds a "Hytale (Aurora Shaders)"
+launcher. **Keep this folder**: the game loads the shaders and saves the menu settings here
+(`shaderpack/include/AU_Settings.glsl`). An earlier Aurora install (an older folder, or the
+SDL3 proxy below) is replaced.
 
-Shaders and settings are copied into `Client/.aurora/shaderpack`, inside the game's own folder,
-so the normal Flatpak launcher can read them. Changes made through the menu are saved there.
-Reinstalling preserves the installed settings while refreshing the pack. Keep this source
-folder for reinstalling after game updates; it is no longer needed to launch the game.
+- **After a game update:** close Hytale and run `bash install.sh` again. Until then the hook
+  keeps the game's own shaders.
+- **Custom game location:** `bash install.sh --client-dir "/path/to/Client"`.
+- **Rebuild from source:** `bash install.sh --build` (needs a C compiler, e.g. `build-essential`).
+- **Uninstall:** `bash uninstall.sh`; the game is back to vanilla.
+- **Another preloader** (MangoHud, gamemode) in the same override keeps working.
 
-- **After a game update:** close Hytale and run `./install.sh` again. If an update replaces
-  the whole Client folder, restore any custom settings from your own backup.
-- **Custom game location:** `./install.sh --client-dir "/path/to/Client"`.
-- **Custom native launcher:** add `--launcher "/path/to/hytale-launcher"`.
-- **Both versions installed:** select `--backend flatpak` or `--backend native`.
-- **Rebuild:** `./install.sh --build`.
-- **Uninstall:** `./install.sh --uninstall` restores the original SDL library. Installed
-  settings are kept in `Client/.aurora/shaderpack`. If the game already replaced SDL during
-  an update, uninstall keeps that newer library.
+Alternatively, `python3 tools/linux_install.py` installs the SDL3 proxy instead: it replaces the
+game's `Client/libSDL3.so` (keeping the original as `libSDL3.aurora-original.so`) and copies the
+pack into `Client/.aurora/shaderpack`. Use one method or the other.
 
 **DLSS and its render-scale integration are Windows-only** and are hidden in the Linux menu.
-Linux uses the pack's temporal anti-aliasing. Linux builds, shader generation and installer
-fixtures have been checked; native Linux gameplay has not yet been verified.
+Linux uses the pack's temporal anti-aliasing.
 
 ### Windows
 
@@ -135,8 +130,8 @@ the search text only. Tab, Enter and Space do not navigate or change settings.
 Enter only confirms text entry when naming a saved preset.
 Changed values are mint, and the selected option's default is always shown in the footer. Settings are saved in
 `shaderpack/include/AU_Settings.glsl`, which you can also edit by hand while the game runs (saving
-the file reloads the shaders). On Linux, edit the installed copy at
-`Client/.aurora/shaderpack/include/AU_Settings.glsl`.
+the file reloads the shaders). On Linux, edit `shaderpack/include/AU_Settings.glsl` in the
+folder you installed from.
 
 The compact left-side menu leaves the centre of the game visible and does not capture movement
 or camera input unless Alt is held. Keyboard shortcuts remain available without Alt;
@@ -177,7 +172,8 @@ Exports are named `.glsl` files in `shaderpack/presets/exports/`; repeated expor
 Deletion requires a second confirmation within five seconds, keeps your current shader settings and
 never deletes Default, quality presets or exported copies. To import a shared export, copy it into an
 unused `shaderpack/presets/preset-00.glsl` through `preset-15.glsl` slot, then reopen the menu. Do not
-overwrite an existing slot. On Linux, use the installed `Client/.aurora/shaderpack/presets/` folder.
+overwrite an existing slot. On Linux this is `shaderpack/presets/` in the folder you installed from
+(`Client/.aurora/shaderpack/presets/` with the SDL3 proxy).
 
 ## Menu options
 
@@ -308,11 +304,10 @@ use the lighter lighting path; lower quality levels reduce the other costs.
 
 ## Build it yourself
 
-On Linux, `./build.sh` builds `build/libaurora-sdl.so` (automatic loading) and
-`build/libaurora.so` (optional manual preloading) with the system C compiler. It requires
-`build-essential`, `pkg-config` and `libcairo2-dev`; shader preparation additionally uses
-`python3` and `python3-pil`. Build on the target distribution rather than copying a shared
-library built against a newer glibc onto an older Ubuntu release.
+On Linux, `./build.sh` builds `build/libaurora.so` (preloaded, what `install.sh` uses) and
+`build/libaurora-sdl.so` (the SDL3 proxy of `tools/linux_install.py`) with the system C compiler
+(`build-essential`). cairo, for the menu text, is loaded at run time. Shader preparation uses
+`python3`, and Pillow (`python3-pil`) when it is installed.
 
 On Windows:
 
@@ -327,26 +322,25 @@ installs.
 ## How it works
 
 Aurora replaces selected Hytale shaders as the game loads them, using an OpenGL proxy on
-Windows or an SDL3 proxy on Linux. The installer extracts the original shader code from your
-game; the executable stays untouched.
+Windows, and on Linux a preloaded library (or the SDL3 proxy). The installer extracts the
+original shader code from your game; the executable stays untouched.
 
 The shaders use the game's colour, depth, normals and lighting to render the scene. Changes
 made through the menu or shader files reload while you play.
 
 ## Troubleshooting
 
-- **Linux looks like vanilla:** close Hytale and run `./install.sh`, then start it normally.
-  Check `Client/.aurora/shaderpack/hook.log` for `automatic proxy`. Run `./install.sh` again
-  after game updates. `./launch.sh --print-command` shows the optional launcher command.
-- **Linux build dependencies missing:** install the Ubuntu packages listed above. The installer
-  does not install system packages or download a compiler for you.
-- **Flatpak reports a missing library or glibc version:** rebuild with `./install.sh --build` on
-  the machine where you play and ensure the Hytale Flatpak runtime is up to date.
+- **Linux looks like vanilla:** press Pause once, then check `shaderpack/hook.log` (in the folder
+  you installed from): "hook loaded (preload)" means Aurora is running; a note that HytaleClient
+  changed means the game updated - close it and run `bash install.sh` again. No hook.log at all:
+  run `bash install.sh` again and check `flatpak override --user --show com.hypixel.HytaleLauncher`.
+- **No menu on Linux:** the menu draws its text with cairo; `hook.log` says so if the game's
+  runtime has no libcairo. The shaders still work.
 - **Looks like vanilla:** press Pause once (the shaders may be toggled off), and check that
   `opengl32.dll` sits next to `HytaleClient.exe`. After a game update, run `Install.bat` again.
 - **Something renders wrong after a game update:** a shader that fails to compile falls back to
   the game's own; the compiler log is in `shaderpack/errors/`, and `shaderpack/hook.log` records
-  what the hook did. On Linux these files are under `Client/.aurora/shaderpack`.
+  what the hook did. On Linux these are in the folder you installed from.
   Please open an issue with those files.
 - **Antivirus warning:** some antivirus tools flag DLLs that load next to a game. Use
   `Build From Source.bat` to build the DLL from the source yourself.
