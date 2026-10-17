@@ -82,7 +82,9 @@ SDL3 proxy below) is replaced.
 
 Alternatively, `python3 tools/linux_install.py` installs the SDL3 proxy instead: it replaces the
 game's `Client/libSDL3.so` (keeping the original as `libSDL3.aurora-original.so`) and copies the
-pack into `Client/.aurora/shaderpack`. Use one method or the other.
+pack into `Client/.aurora/shaderpack`; `python3 tools/linux_install.py --uninstall` restores the
+original. Use one method or the other: `install.sh` removes the proxy, and while the proxy is
+in the game folder the preloaded library stays inactive.
 
 **DLSS and its render-scale integration are Windows-only** and are hidden in the Linux menu.
 Linux uses the pack's temporal anti-aliasing.

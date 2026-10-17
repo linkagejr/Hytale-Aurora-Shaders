@@ -43,7 +43,7 @@ def detect(client_dir=None, backend=None):
     for client, mode in candidates():
         if (not backend or mode == backend) and is_client(client):
             return client, mode
-    raise ValueError("Hytale was not found. Run ./install.sh --client-dir /path/to/Client")
+    raise ValueError("Hytale was not found. Run python3 tools/linux_install.py --client-dir /path/to/Client")
 
 
 def validate_client(executable):
@@ -94,13 +94,13 @@ def main():
             return
         if args.launch:
             if not CONFIG.is_file():
-                raise ValueError("Run ./install.sh before launching Aurora")
+                raise ValueError("Run python3 tools/linux_install.py before launching Aurora")
             config = json.loads(CONFIG.read_text())
             executable = Path(config["client_dir"]) / "HytaleClient"
             if not executable.is_file() or fingerprint(executable) != config["client_fingerprint"]:
-                raise ValueError("Hytale has changed since shader preparation. Close the launcher and run ./install.sh again")
+                raise ValueError("Hytale has changed since shader preparation. Close the launcher and run python3 tools/linux_install.py again")
             if not linux_hook.installed(executable.parent):
-                raise ValueError("Aurora's automatic hook is missing. Run ./install.sh again")
+                raise ValueError("Aurora's automatic hook is missing. Run python3 tools/linux_install.py again")
             argv, env = launch_command(config, extra, os.environ)
             if args.print_command:
                 import shlex
@@ -132,7 +132,8 @@ def main():
         print(f"Aurora's automatic hook installed for {backend}: {client}\n"
               "Start Hytale normally. Home opens the options; launch.sh is optional.\n"
               f"Live shader settings: {installed_pack / 'include/AU_Settings.glsl'}\n"
-              "Run ./install.sh again after game updates. Use ./install.sh --uninstall to restore vanilla.")
+              "Run python3 tools/linux_install.py again after game updates; python3 tools/linux_install.py --uninstall\n"
+              "restores vanilla. (bash install.sh is the other Linux method; use one or the other.)")
     except (OSError, ValueError, KeyError, ImportError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Aurora: {error}\n")
 
