@@ -21,4 +21,4 @@ Transparent source pixels stay transparent. Root and spider-web textures are exc
 
 Run the installer again to rebuild masks after editing. Alternatively, run `tools/build_sss.ps1` with `-Assets`, `-Output` and `-Overrides`, or `tools/build_sss.py` with the equivalent lowercase arguments. Point Output at `shaderpack/sss-masks.bin` and Overrides at this folder. The running hook reloads regenerated masks.
 
-On Linux, edit the installed `Client/.aurora/shaderpack/sss/` folder. Custom masks are retained during updates on both platforms. **Foliage SSS textures** disables per-pixel masks; **SSS texture influence** blends between uniform and textured transmission.
+On Linux, edit this folder and run `bash install.sh` again (with the SDL3 proxy of `tools/linux_install.py`: the installed `Client/.aurora/shaderpack/sss/` folder, then that installer again). Custom masks are retained during updates on both platforms. **Foliage SSS textures** disables per-pixel masks; **SSS texture influence** blends between uniform and textured transmission.

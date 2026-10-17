@@ -71,7 +71,8 @@ The installer changes no game file. For the Flatpak it sets a user override
 game and lets it read this folder; for a native install it adds a "Hytale (Aurora Shaders)"
 launcher. **Keep this folder**: the game loads the shaders and saves the menu settings here
 (`shaderpack/include/AU_Settings.glsl`). An earlier Aurora install (an older folder, or the
-SDL3 proxy below) is replaced.
+SDL3 proxy below) is replaced; the settings you changed there come along (the others start at
+this version's defaults), as do custom profiles and foliage masks.
 
 - **After a game update:** close Hytale and run `bash install.sh` again. Until then the hook
   keeps the game's own shaders.
