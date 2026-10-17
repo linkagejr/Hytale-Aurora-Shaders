@@ -72,7 +72,7 @@ find_client() {
     # Anywhere under the usual places (another channel, a changed layout): the newest one.
     local found
     found=$(find "$FLATPAK_DATA" "$DATA_HOME/Hytale" -maxdepth 12 -type f -name 'HytaleClient*' -perm -u+x \
-                 ! -name '*.dll' ! -name '*.so' -printf '%T@ %h\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+                 ! -name '*.dll' ! -name '*.so' -printf '%T@ %h\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2- || true)
     [[ -n $found ]] && is_client_dir "$found" && { printf '%s\n' "$found"; return; }
 
     say "Hytale was not found in its usual folders." >&2
@@ -85,7 +85,7 @@ find_client() {
     [[ -n ${d:-} ]] || die "No folder given."
     is_client_dir "$d" && { printf '%s\n' "$d"; return; }
     found=$(find "$d" -type f -name 'HytaleClient*' -perm -u+x ! -name '*.dll' ! -name '*.so' -printf '%T@ %h\n' 2>/dev/null \
-                | sort -rn | head -1 | cut -d' ' -f2-)
+                | sort -rn | head -1 | cut -d' ' -f2- || true)
     [[ -n $found ]] && is_client_dir "$found" || die "HytaleClient not found under $d."
     printf '%s\n' "$found"
 }
@@ -246,6 +246,13 @@ uninstall_flatpak() {
     rm -rf "$FLATPAK_DATA/aurora-shaders"
 }
 
+# A launcher that is already open keeps the environment it was started with (and passes it to
+# the game), so it has to be restarted to pick up a changed override.
+flatpak_launcher_open() {
+    local running
+    command -v flatpak >/dev/null && running=$(flatpak ps --columns=application 2>/dev/null) && grep -qx "$APP" <<< "$running"
+}
+
 # ---------------------------------------------------------------------------------------
 # Native (non-Flatpak) launcher: a script and a menu entry that start it with the library.
 
@@ -302,6 +309,7 @@ if [[ $uninstall == 1 ]]; then
     uninstall_flatpak
     uninstall_native
     say "Aurora Shaders removed. Hytale is back to its own shaders."
+    if flatpak_launcher_open; then say "The Hytale launcher is open: close it and start it again."; fi
     exit 0
 fi
 
@@ -350,3 +358,7 @@ say ''
 say 'Aurora Shaders installed. Start Hytale; in game, Home opens the options and Pause'
 say 'switches the shaders off and on. Keep this folder: the game loads the pack from here.'
 say 'After a Hytale update, run bash install.sh again.'
+if [[ $flatpak == 1 ]] && flatpak_launcher_open; then
+    say ''
+    say 'The Hytale launcher is open: close it and start it again, so the game gets the shaders.'
+fi
