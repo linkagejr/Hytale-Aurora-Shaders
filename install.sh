@@ -355,8 +355,9 @@ else
 fi
 
 say ''
-say 'Aurora Shaders installed. Start Hytale; in game, Home opens the options and Pause'
-say 'switches the shaders off and on. Keep this folder: the game loads the pack from here.'
+say 'Aurora Shaders installed. Start Hytale; in game, Home opens the options (rebind it under'
+say 'General), hold Ctrl to use the mouse in them, and Pause switches the shaders off and on.'
+say 'Keep this folder: the game loads the pack from here.'
 say 'After a Hytale update, run bash install.sh again.'
 if [[ $flatpak == 1 ]] && flatpak_launcher_open; then
     say ''

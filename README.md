@@ -64,7 +64,8 @@ bash install.sh
 ```
 
 Then **start Hytale normally** (launcher or desktop shortcut; if the launcher was open, close it
-and start it again). Home opens the options, Pause switches the shaders off and on.
+and start it again). Home opens the options (rebind it under General), hold Ctrl to use the
+mouse in them, and Pause switches the shaders off and on.
 
 The installer changes no game file. For the Flatpak it sets a user override
 (`flatpak override --user com.hypixel.HytaleLauncher`) that preloads `libaurora.so` into the
