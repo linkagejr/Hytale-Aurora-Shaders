@@ -1,3 +1,11 @@
+// The SDL3 proxy exports these hooks (sdl_proxy.map). Preloaded, the dlsym filter hands them to
+// the game only, so they stay out of every other process's symbol lookups.
+#if AU_SDL_PROXY
+#define LM_API __declspec(dllexport)
+#else
+#define LM_API __attribute__((visibility("hidden")))
+#endif
+
 // SDL3 ABI event storage (SDL_events.h); keep SDL itself a runtime dependency.
 typedef union { uint32_t type; uint64_t alignment; unsigned char bytes[128]; } LinuxMenuEvent;
 static bool (*lm_poll)(LinuxMenuEvent *);
@@ -138,7 +146,7 @@ static bool linux_menu_filter(LinuxMenuEvent *event)
     return true;
 }
 
-__declspec(dllexport) bool SDL_PollEvent(LinuxMenuEvent *event)
+LM_API bool SDL_PollEvent(LinuxMenuEvent *event)
 {
     linux_menu_init(); linux_menu_sync();
     if (!lm_poll) return false;
@@ -152,7 +160,7 @@ __declspec(dllexport) bool SDL_PollEvent(LinuxMenuEvent *event)
     }
 }
 
-__declspec(dllexport) int SDL_PeepEvents(LinuxMenuEvent *events, int capacity, int action, uint32_t minimum, uint32_t maximum)
+LM_API int SDL_PeepEvents(LinuxMenuEvent *events, int capacity, int action, uint32_t minimum, uint32_t maximum)
 {
     linux_menu_init();
     if (!lm_peep) return -1;
@@ -167,7 +175,7 @@ __declspec(dllexport) int SDL_PeepEvents(LinuxMenuEvent *events, int capacity, i
     }
 }
 
-__declspec(dllexport) const bool *SDL_GetKeyboardState(int *count)
+LM_API const bool *SDL_GetKeyboardState(int *count)
 {
     linux_menu_init();
     int size = 0;
@@ -187,7 +195,7 @@ __declspec(dllexport) const bool *SDL_GetKeyboardState(int *count)
 }
 
 #define LM_MOUSE_WRAPPER(name, real, savedX, savedY) \
-__declspec(dllexport) uint32_t name(float *x, float *y) { \
+LM_API uint32_t name(float *x, float *y) { \
     linux_menu_init(); \
     uint32_t buttons = real ? real(x, y) : 0; \
     if (lm_captured_window) { if (x) *x = savedX; if (y) *y = savedY; return 0; } \
@@ -198,13 +206,13 @@ LM_MOUSE_WRAPPER(SDL_GetGlobalMouseState, lm_global, lm_global_x, lm_global_y)
 LM_MOUSE_WRAPPER(SDL_GetRelativeMouseState, lm_relative, 0, 0)
 #undef LM_MOUSE_WRAPPER
 
-__declspec(dllexport) bool SDL_SetWindowRelativeMouseMode(void *window, bool enabled)
+LM_API bool SDL_SetWindowRelativeMouseMode(void *window, bool enabled)
 {
     linux_menu_init();
     if (lm_captured_window == window && window) { lm_saved_relative = enabled; enabled = false; }
     return lm_set_relative ? lm_set_relative(window, enabled) : false;
 }
-__declspec(dllexport) bool SDL_SetWindowMouseGrab(void *window, bool enabled)
+LM_API bool SDL_SetWindowMouseGrab(void *window, bool enabled)
 {
     linux_menu_init();
     if (lm_captured_window == window && window) { lm_saved_grab = enabled; enabled = false; }

@@ -17,7 +17,14 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#include <cairo/cairo.h>
+#include "cairo_dyn.h"
+
+// Keep the library loadable on glibc 2.34 (Flatpak runtimes lag the host): glibc 2.38+ headers
+// redirect sscanf to __isoc23_sscanf (GLIBC_2.38), which behaves the same for these formats.
+#if defined(__GLIBC__) && !defined(AU_NATIVE_SSCANF)
+extern int __isoc99_sscanf(const char *, const char *, ...);
+#define sscanf __isoc99_sscanf
+#endif
 
 #define WINAPI
 #define APIENTRY

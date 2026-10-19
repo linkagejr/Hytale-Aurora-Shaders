@@ -14,6 +14,11 @@ typedef unsigned COLORREF;
 static int linux_panel_resize(int w, int h)
 {
     if (g_ovBmp && g_ovBits && g_ovW == w && g_ovH == h) return 1;
+    if (!au_cairo_load()) {
+        static int told;
+        if (!told) { told = 1; logf_("menu unavailable: libcairo.so.2 could not be loaded in the game's runtime"); }
+        return 0;
+    }
     if (g_ovDC) cairo_destroy(g_ovDC);
     if (g_ovBmp) cairo_surface_destroy(g_ovBmp);
     g_ovBmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w * 2, h * 2);
